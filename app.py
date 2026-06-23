@@ -4,7 +4,8 @@ from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'projectproof_secret_2024'
-
+app.config['SESSION_COOKIE_SECURE'] = False
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 USERS = {
     'macseogoon': {
         'password': 'macseogoon',
