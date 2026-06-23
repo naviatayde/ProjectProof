@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}{{ group_name }} — ProjectProof{% endblock %}
+
+{% block body %}
+<div>
+  <header class="topbar">
+    <a class="topbar-brand" href="/leader">Project<span>Proof</span></a>
+    <div class="topbar-meta">
+      <span class="role-badge">Leader</span>
+      <span>{{ user.display }}</span>
+      <a href="/logout">Sign out</a>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="page-header">
+      <div class="page-eyebrow">{{ group_name }}</div>
+      <h1 class="page-title">Leader <strong>Dashboard</strong></h1>
+    </div>
+
+    {% if success %}
+    <div class="notice ok">{{ success }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="notice err">{{ error }}</div>
+    {% endif %}
+
+    <!-- SECTION 1: GROUP STANDING — always visible at top -->
+    <div class="section">
+      <div class="section-label">Group Standing</div>
+      <div class="card">
+        <div class="card-body">
+          {% if members %}
+            {% for m in members %}
+            <div class="member-row">
+              <div>
+                <div class="member-name">{{ m.display }}</div>
+                <div class="member-sub">
+                  {% if m.streak > 0 %}
+                    {{ m.streak }} session{{ 's' if m.streak != 1 else '' }} logged
+                  {% else %}
+                    no sessions yet
+                  {% endif %}
+                </div>
+              </div>
+              <div class="member-right">
+                <div>
+                  <div class="member-pts">{{ m.total }}</div>
+                  <div class="member-pts-label">pts</div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+          <div class="empty">No members yet. Ask your teacher to add them.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: LOG PROGRESS -->
+    <div class="section">
+      <div class="section-label">Log Project Progress</div>
+      <div class="card">
+        <div class="card-section">
+          <form method="POST" action="/log-progress">
+            <div class="form-field">
+              <label>What did the group achieve today?</label>
+              <textarea name="entry" placeholder="e.g. Finished the wireframes. Moving on to backend logic tomorrow…" required></textarea>
+            </div>
+            <div class="milestone-check">
+              <input type="checkbox" name="milestone" id="milestone" />
+              <label for="milestone">Mark as Major Milestone</label>
+            </div>
+            <button class="btn-submit" type="submit">Log Progress</button>
+          </form>
+        </div>
+
+        <!-- PROGRESS TIMELINE -->
+        {% if progress_logs %}
+        <div class="card-section">
+          <div style="font-family:var(--mono); font-size:0.58rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:1rem;">Progress Timeline</div>
+          <div class="timeline">
+            {% for item in progress_logs | reverse %}
+            <div class="timeline-item">
+              <div class="t-dot {% if item.milestone %}milestone{% endif %}"></div>
+              <div>
+                <div class="t-entry {% if item.milestone %}ms{% endif %}">
+                  {{ item.entry }}
+                  {% if item.milestone %}<span class="ms-tag">Milestone</span>{% endif %}
+                </div>
+                <div class="t-meta">{{ item.timestamp }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <div class="card-section">
+          <div class="empty" style="padding:0;">No progress logged yet.</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- SECTION 3: LOG CONTRIBUTION -->
+    <div class="section">
+      <div class="section-label">Log Member Contribution</div>
+      <div class="card">
+        <div class="card-section">
+          {% if members %}
+          <form method="POST" action="/leader">
+            <div class="form-field">
+              <label>Select Member</label>
+              <select name="member" required>
+                <option value="" disabled selected>Choose a member</option>
+                {% for m in members %}
+                <option value="{{ m.username }}">{{ m.display }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Points earned today (0 = absent / no contribution, 5 = excellent)</label>
+              <div class="pts-selector">
+                {% for i in range(6) %}
+                <input type="radio" name="points" id="pts{{ i }}" value="{{ i }}" {% if i == 3 %}checked{% endif %} />
+                <label for="pts{{ i }}">{{ i }}</label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Describe their contribution</label>
+              <textarea name="comment" placeholder="What specifically did this member do today?" required></textarea>
+            </div>
+            <button class="btn-submit" type="submit">Record Contribution</button>
+          </form>
+          {% else %}
+          <div class="empty" style="padding:0;">No members to log for yet.</div>
+          {% endif %}
+        </div>
+
+        <!-- CONTRIBUTION LOG -->
+        {% set has_logs = members | selectattr('logs') | list %}
+        {% if has_logs %}
+        <div class="card-section">
+          <div style="font-family:var(--mono); font-size:0.58rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:1rem;">Contribution Log — Most Recent First</div>
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>What they did</th>
+                <th>When</th>
+                <th>Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in members %}
+                {% for log in m.logs | reverse %}
+                <tr>
+                  <td style="white-space:nowrap; font-weight:500; color:var(--ink);">{{ m.display }}</td>
+                  <td><div class="log-comment">{{ log.comment }}</div></td>
+                  <td style="white-space:nowrap; color:var(--ink-soft);">{{ log.timestamp }}</td>
+                  <td class="pts {% if log.points == 0 %}zero{% endif %}">+{{ log.points }}</td>
+                </tr>
+                {% endfor %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+  </main>
+</div>
+{% endblock %}

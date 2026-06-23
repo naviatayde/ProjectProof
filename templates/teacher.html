@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% block title %}Control Room — ProjectProof{% endblock %}
+
+{% block extra_style %}
+<style>
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 0 2rem;
+    align-items: start;
+  }
+  .sidebar {
+    position: sticky;
+    top: 4.5rem;
+  }
+  .side-card {
+    border: 1px solid var(--rule);
+    background: var(--white);
+    margin-bottom: 1.25rem;
+  }
+  .side-card-header {
+    padding: 0.7rem 1.25rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .side-card-body { padding: 1.25rem; }
+  .side-card-body .form-field { margin-bottom: 1rem; }
+  .acc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 1.25rem;
+    border-bottom: 1px solid var(--rule);
+    gap: 0.5rem;
+  }
+  .acc-row:last-child { border-bottom: none; }
+  .acc-name { font-size: 0.83rem; font-weight: 500; color: var(--ink); }
+  .acc-meta { font-family: var(--mono); font-size: 0.58rem; color: var(--ink-soft); margin-top: 0.05rem; }
+
+  @media (max-width: 700px) {
+    .two-col { grid-template-columns: 1fr; }
+    .sidebar { position: static; }
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div>
+  <header class="topbar">
+    <a class="topbar-brand" href="/teacher">Project<span>Proof</span></a>
+    <div class="topbar-meta">
+      <span class="role-badge">Teacher</span>
+      <span>{{ user.display }}</span>
+      <a href="/logout">Sign out</a>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="page-header">
+      <div class="page-eyebrow">Control Room</div>
+      <h1 class="page-title">Group <strong>Overview</strong></h1>
+    </div>
+
+    <!-- STATS -->
+    <div class="stat-strip">
+      <div class="stat-item">
+        <div class="stat-value">{{ all_groups | length }}</div>
+        <div class="stat-label">Groups</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">{{ all_accounts | length }}</div>
+        <div class="stat-label">Accounts</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">{{ all_logs | length }}</div>
+        <div class="stat-label">Log Entries</div>
+      </div>
+      <div class="stat-item">
+        {% set tp = namespace(v=0) %}
+        {% for log in all_logs %}{% set tp.v = tp.v + log.points %}{% endfor %}
+        <div class="stat-value">{{ tp.v }}</div>
+        <div class="stat-label">Total Points</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+
+      <!-- LEFT: GROUPS -->
+      <div>
+        {% if not all_groups %}
+        <div class="empty">No groups yet. Create accounts using the form on the right.</div>
+        {% endif %}
+
+        {% for group_name, members in all_groups.items() %}
+        {% set meta = group_meta.get(group_name, {}) %}
+        {% set gp = progress.get(group_name, []) %}
+
+        <div class="card">
+          <!-- GROUP HEADER -->
+          <div class="card-header">
+            <div>
+              <div class="card-title">{{ group_name }}</div>
+              <div class="card-subtitle">
+                Leader: {{ meta.leader }}
+                &nbsp;·&nbsp;
+                {{ members | length }} member{{ 's' if members | length != 1 else '' }}
+                &nbsp;·&nbsp;
+                {% if meta.last_activity %}
+                  Last active {{ meta.last_activity }}
+                {% else %}
+                  No activity yet
+                {% endif %}
+              </div>
+            </div>
+            <div class="card-actions">
+              <button class="toggle-btn" onclick="toggle('prog_{{ group_name|replace(' ','_') }}', this)">
+                ▸ Progress
+              </button>
+              <button class="toggle-btn" onclick="toggle('logs_{{ group_name|replace(' ','_') }}', this)">
+                ▸ Logs
+              </button>
+              <form method="POST" action="/delete-group/{{ group_name }}"
+                onsubmit="return confirm('Delete {{ group_name }} and all its members?')">
+                <button class="danger-btn" type="submit">Delete</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- LATEST PROGRESS (always visible — 1 entry) -->
+          {% if gp %}
+          <div style="padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--rule); background: #fafaf9;">
+            <div style="font-family:var(--mono); font-size:0.58rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:0.4rem;">
+              Latest Update <span class="latest-badge">New</span>
+            </div>
+            {% set last = gp[-1] %}
+            <div style="font-size:0.88rem; color:var(--ink); line-height:1.5; {% if last.milestone %}font-weight:500;{% endif %}">
+              {{ last.entry }}
+              {% if last.milestone %}<span class="ms-tag">Milestone</span>{% endif %}
+            </div>
+            <div style="font-family:var(--mono); font-size:0.62rem; color:var(--ink-soft); margin-top:0.2rem;">
+              {{ last.by }} · {{ last.timestamp }}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- FULL PROGRESS TIMELINE (collapsible) -->
+          <div class="collapsible" id="prog_{{ group_name|replace(' ','_') }}">
+            <div style="padding:1.25rem; border-bottom:1px solid var(--rule); background:#fafaf9;">
+              <div style="font-family:var(--mono); font-size:0.58rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:1rem;">Full Progress Timeline</div>
+              {% if gp %}
+              <div class="timeline">
+                {% for item in gp %}
+                <div class="timeline-item">
+                  <div class="t-dot {% if item.milestone %}milestone{% endif %}"></div>
+                  <div>
+                    <div class="t-entry {% if item.milestone %}ms{% endif %}">
+                      {{ item.entry }}
+                      {% if item.milestone %}<span class="ms-tag">Milestone</span>{% endif %}
+                    </div>
+                    <div class="t-meta">{{ item.by }} · {{ item.timestamp }}</div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="empty" style="padding:0;">No progress logged yet.</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- MEMBERS -->
+          <div class="card-body">
+            {% if members %}
+              {% for m in members %}
+              <div class="member-row">
+                <div>
+                  <div class="member-name">{{ m.display }}</div>
+                  <div class="member-sub">
+                    {% if m.streak > 0 %}{{ m.streak }} session{{ 's' if m.streak != 1 else '' }} logged{% else %}no sessions yet{% endif %}
+                  </div>
+                </div>
+                <div class="member-right">
+                  <div>
+                    <div class="member-pts">{{ m.total }}</div>
+                    <div class="member-pts-label">pts</div>
+                  </div>
+                  <form method="POST" action="/delete-account/{{ m.username }}"
+                    onsubmit="return confirm('Delete {{ m.display }}?')">
+                    <button class="danger-btn" type="submit">✕</button>
+                  </form>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+            <div class="empty">No members in this group yet.</div>
+            {% endif %}
+          </div>
+
+          <!-- CONTRIBUTION LOGS (collapsible) -->
+          {% set has_logs = members | selectattr('logs') | list %}
+          <div class="collapsible" id="logs_{{ group_name|replace(' ','_') }}">
+            <div style="padding:0 1.25rem 1.25rem;">
+              {% if has_logs %}
+              <table class="ledger" style="margin-top:1rem;">
+                <thead>
+                  <tr>
+                    <th>Member</th>
+                    <th>What they did</th>
+                    <th>When</th>
+                    <th>Pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for m in members %}
+                    {% for log in m.logs | reverse %}
+                    <tr>
+                      <td style="white-space:nowrap; font-weight:500; color:var(--ink);">{{ m.display }}</td>
+                      <td>
+                        <div class="log-comment">{{ log.comment }}</div>
+                        <div class="log-meta">by {{ log.by }}</div>
+                      </td>
+                      <td style="white-space:nowrap; color:var(--ink-soft);">{{ log.timestamp }}</td>
+                      <td class="pts {% if log.points == 0 %}zero{% endif %}">+{{ log.points }}</td>
+                    </tr>
+                    {% endfor %}
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <div class="empty">No contributions logged yet.</div>
+              {% endif %}
+            </div>
+          </div>
+
+        </div>
+        {% endfor %}
+
+        <!-- ALL ACTIVITY FEED -->
+        {% if all_logs %}
+        <div class="section" style="margin-top:1rem;">
+          <div class="section-label">All Activity — Most Recent First</div>
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Group</th>
+                <th>What they did</th>
+                <th>When</th>
+                <th>Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in all_logs %}
+              <tr>
+                <td style="white-space:nowrap; font-weight:500; color:var(--ink);">{{ log.member }}</td>
+                <td style="white-space:nowrap; color:var(--ink-soft);">{{ log.group }}</td>
+                <td>
+                  <div class="log-comment">{{ log.comment }}</div>
+                  <div class="log-meta">by {{ log.by }}</div>
+                </td>
+                <td style="white-space:nowrap; color:var(--ink-soft);">{{ log.timestamp }}</td>
+                <td class="pts {% if log.points == 0 %}zero{% endif %}">+{{ log.points }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+      </div>
+
+      <!-- RIGHT SIDEBAR -->
+      <div class="sidebar">
+
+        <div class="side-card">
+          <div class="side-card-header">Create Account</div>
+          <div class="side-card-body">
+            <form method="POST" action="/create-account">
+              <div class="form-field">
+                <label>Full Name</label>
+                <input type="text" name="display" placeholder="e.g. Maria Santos" required />
+              </div>
+              <div class="form-field">
+                <label>Username</label>
+                <input type="text" name="username" placeholder="e.g. maria_s" required />
+              </div>
+              <div class="form-field">
+                <label>Password</label>
+                <input type="text" name="password" placeholder="Set a password" required />
+              </div>
+              <div class="form-field">
+                <label>Role</label>
+                <select name="role" required>
+                  <option value="" disabled selected>Select role</option>
+                  <option value="leader">Leader</option>
+                  <option value="member">Member</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>Assign to Group</label>
+                <select name="group">
+                  <option value="">— select existing —</option>
+                  {% for g in all_group_names %}
+                  <option value="{{ g }}">{{ g }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-field">
+                <label>Or New Group Name</label>
+                <input type="text" name="new_group" placeholder="e.g. Group Gamma" />
+              </div>
+              <button class="btn-submit" type="submit">Create Account</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="side-card">
+          <div class="side-card-header">All Accounts</div>
+          {% if all_accounts %}
+            {% for acc in all_accounts %}
+            <div class="acc-row">
+              <div>
+                <div class="acc-name">{{ acc.display }}</div>
+                <div class="acc-meta">{{ acc.username }} · {{ acc.role }} · {{ acc.group }}</div>
+              </div>
+              <form method="POST" action="/delete-account/{{ acc.username }}"
+                onsubmit="return confirm('Delete {{ acc.display }}?')">
+                <button class="danger-btn" type="submit">✕</button>
+              </form>
+            </div>
+            {% endfor %}
+          {% else %}
+          <div class="empty" style="padding:1rem 1.25rem;">No accounts yet.</div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  function toggle(id, btn) {
+    const el = document.getElementById(id);
+    const open = el.classList.toggle('open');
+    btn.classList.toggle('active', open);
+    const label = btn.textContent.replace('▸','').replace('▾','').trim();
+    btn.textContent = (open ? '▾ ' : '▸ ') + label;
+  }
+</script>
+{% endblock %}

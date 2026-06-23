@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Sign in — ProjectProof{% endblock %}
+
+{% block body %}
+<div class="login-shell">
+  <div class="login-card">
+    <div class="login-brand">
+      Group Contribution System
+      <strong>Project<em>Proof</em></strong>
+    </div>
+
+    {% if error %}
+    <div class="notice err">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+      <div class="form-field">
+        <label>Username</label>
+        <input type="text" name="username" autocomplete="username" autofocus required />
+      </div>
+      <div class="form-field">
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="current-password" required />
+      </div>
+      <div class="submit-row">
+        <button class="btn-submit" type="submit">Sign in</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

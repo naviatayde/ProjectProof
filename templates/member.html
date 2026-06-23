@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}{{ user.display }} — ProjectProof{% endblock %}
+
+{% block body %}
+<div>
+  <header class="topbar">
+    <a class="topbar-brand" href="/member">Project<span>Proof</span></a>
+    <div class="topbar-meta">
+      <span class="role-badge">Member</span>
+      <span>{{ user.display }}</span>
+      <a href="/logout">Sign out</a>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="page-header">
+      <div class="page-eyebrow">{{ user.group }}</div>
+      <h1 class="page-title">{{ user.display }}'s <strong>Record</strong></h1>
+    </div>
+
+    <!-- STATS -->
+    <div class="stat-strip">
+      <div class="stat-item">
+        <div class="stat-value">{{ total }}</div>
+        <div class="stat-label">Total Points</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">{{ logs | length }}</div>
+        <div class="stat-label">Sessions</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">{{ streak }}</div>
+        <div class="stat-label">Streak</div>
+      </div>
+    </div>
+
+    <!-- MY CONTRIBUTIONS -->
+    <div class="section">
+      <div class="section-label">My Contribution History</div>
+      <div class="card">
+        {% if logs %}
+        <div class="card-section" style="padding-top:0; border-top:none;">
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>What I contributed</th>
+                <th>Logged by</th>
+                <th>When</th>
+                <th>Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in logs %}
+              <tr>
+                <td><div class="log-comment">{{ log.comment }}</div></td>
+                <td style="white-space:nowrap; color:var(--ink-soft);">{{ log.by }}</td>
+                <td style="white-space:nowrap; color:var(--ink-soft);">{{ log.timestamp }}</td>
+                <td class="pts {% if log.points == 0 %}zero{% endif %}">+{{ log.points }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="card-section">
+          <div class="empty" style="padding:0;">
+            No contributions recorded yet. Your leader will log your work here.
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- GROUP PROGRESS TIMELINE -->
+    <div class="section">
+      <div class="section-label">{{ user.group }} — Project Progress</div>
+      <div class="card">
+        <div class="card-section" style="{% if not group_progress %}border-top:none;{% endif %}">
+          {% if group_progress %}
+          <div class="timeline">
+            {% for item in group_progress | reverse %}
+            <div class="timeline-item">
+              <div class="t-dot {% if item.milestone %}milestone{% endif %}"></div>
+              <div>
+                <div class="t-entry {% if item.milestone %}ms{% endif %}">
+                  {{ item.entry }}
+                  {% if item.milestone %}<span class="ms-tag">Milestone</span>{% endif %}
+                </div>
+                <div class="t-meta">{{ item.timestamp }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty" style="padding:0;">
+            Your leader hasn't logged any project progress yet.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+{% endblock %}
